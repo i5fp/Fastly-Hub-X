@@ -1,0 +1,866 @@
+-- Key System
+local httpService = game:GetService("HttpService")
+
+-- Pastebin raw URL containing the key (replace with your actual Pastebin raw URL)
+local pastebinURL = "https://pastebin.com/raw/TLFJUEax"
+
+-- Function to fetch the valid key from Pastebin
+local function getValidKey()
+    local success, response = pcall(function()
+        return game:HttpGet(pastebinURL)
+    end)
+    if success then
+        return response:match("^%s*(.-)%s*$") -- Trim whitespace
+    else
+        return nil
+    end
+end
+
+-- Function to validate the user's key
+local function validateKey(userKey)
+    local validKey = getValidKey()
+    if not validKey then
+        print("Failed to fetch the key. Please try again later.")
+        return false
+    end
+    return userKey == validKey
+end
+
+-- Prompt user for a key before proceeding
+local function requestKey()
+    local player = game.Players.LocalPlayer
+    local keyGui = Instance.new("ScreenGui", player.PlayerGui)
+    local frame = Instance.new("Frame", keyGui)
+    frame.Size = UDim2.new(0, 300, 0, 150)
+    frame.Position = UDim2.new(0.5, -150, 0.5, -75)
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+
+    local textBox = Instance.new("TextBox", frame)
+    textBox.Size = UDim2.new(0, 280, 0, 50)
+    textBox.Position = UDim2.new(0.5, -140, 0.2, 0)
+    textBox.PlaceholderText = "Enter Key"
+    textBox.Text = ""
+    textBox.BackgroundColor3 = Color3.new(1, 1, 1)
+
+    local submitButton = Instance.new("TextButton", frame)
+    submitButton.Size = UDim2.new(0, 280, 0, 50)
+    submitButton.Position = UDim2.new(0.5, -140, 0.6, 0)
+    submitButton.Text = "Submit"
+    submitButton.BackgroundColor3 = Color3.new(0.5, 0.5, 0.5)
+
+    local isKeyValid = false
+
+    submitButton.MouseButton1Click:Connect(function()
+        local userKey = textBox.Text
+        if validateKey(userKey) then
+            print("Key valid! Loading script...")
+            isKeyValid = true
+            keyGui:Destroy()
+        else
+            print("Invalid key. Please try again.")
+        end
+    end)
+
+    -- Wait until the key is valid before proceeding
+    repeat wait() until isKeyValid
+end
+
+-- Call the key request function
+requestKey()
+
+local DrRayLibrary =
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/AZYsGithub/DrRay-UI-Library/main/DrRay.lua"))()
+
+local window = DrRayLibrary:Load("Fastly Hub X", "Default")
+
+--Main tab (no ads / portals, walkspeed, jump power, size, invinsible, auto join brawl)
+local mainTab = DrRayLibrary.newTab("Main", "ImageIdHere")
+
+--No Ads Toggle
+mainTab.newToggle(
+    "No Ads / Portals",
+    "Removes Annoying In-Game Ads",
+    false,
+    function(toggleState)
+        if toggleState then
+            game.Players.LocalPlayer.adsAllowed.Value = true
+        else
+            game.Players.LocalPlayer.adsAllowed.Value = false
+        end
+    end
+)
+--Size Slider
+mainTab.newSlider(
+    "Size",
+    "Changes in-game size.",
+    100,
+    false,
+    function(num)
+        local success, result =
+            pcall(
+            function()
+                game:GetService("ReplicatedStorage").rEvents.changeSpeedSizeRemote:InvokeServer("changeSize", num)
+            end
+        )
+        if not success then
+        end
+    end
+)
+--Size 2 Button
+mainTab.newButton(
+    "Size 2",
+    "Change your size to 2",
+    function()
+        game:GetService("ReplicatedStorage").rEvents.changeSpeedSizeRemote:InvokeServer("changeSize", 2)
+    end
+)
+--Size nan Button
+mainTab.newButton(
+    "Size nan",
+    "Change your size to nan",
+    function()
+        game:GetService("ReplicatedStorage").rEvents.changeSpeedSizeRemote:InvokeServer("changeSize", NaN)
+    end
+)
+--Invinsible Toggle
+mainTab.newToggle(
+    "Invinsible",
+    "Wait until brawl for activation. Reset for de-activation.",
+    false,
+    function(toggleState)
+        if toggleState then
+            -- Control flags to start or stop the scripts
+            _G.runAutoJoinBrawl = true
+            _G.runBlockTeleport = true
+
+            -- Script 1: Auto-join Brawl
+            local function autoJoinBrawl()
+                while _G.runAutoJoinBrawl do
+                    game.ReplicatedStorage.rEvents.brawlEvent:FireServer("joinBrawl")
+                    wait(0.1)
+                end
+            end
+
+            -- Script 2: Block Teleport to 'teleportPart'
+            local function blockTeleport()
+                local player = game.Players.LocalPlayer
+                local humanoidRootPart = player.Character:WaitForChild("HumanoidRootPart")
+                local lastPosition = humanoidRootPart.Position
+
+                game:GetService("RunService").Stepped:Connect(
+                    function()
+                        if not _G.runBlockTeleport then
+                            return
+                        end
+
+                        local currentPosition = humanoidRootPart.Position
+
+                        -- Check if the player is near any part named 'teleportPart'
+                        for _, teleportPart in pairs(workspace:GetDescendants()) do
+                            if teleportPart:IsA("BasePart") and teleportPart.Name == "teleportPart" then
+                                if (currentPosition - teleportPart.Position).magnitude < 10 then -- Adjust the distance if needed
+                                    -- If the player is teleported to 'teleportPart', move them back
+                                    humanoidRootPart.CFrame = CFrame.new(lastPosition)
+                                    return
+                                end
+                            end
+                        end
+
+                        -- Update the last valid position if no teleportation detected
+                        lastPosition = currentPosition
+                    end
+                )
+            end
+
+            -- Create coroutines for each script
+            local coroutineAutoJoin = coroutine.create(autoJoinBrawl)
+            local coroutineBlockTeleport = coroutine.create(blockTeleport)
+
+            -- Run both coroutines
+            coroutine.resume(coroutineAutoJoin)
+            coroutine.resume(coroutineBlockTeleport)
+        else
+            _G.runAutoJoinBrawl = false
+            _G.runBlockTeleport = false
+        end
+    end
+)
+
+--Punch Tab (auto kill, fast punch, auto punch with animation, auto punch no animation)
+local punchTab = DrRayLibrary.newTab("Killing", "ImageIdHere")
+
+--Auto Kill Toggle
+punchTab.newToggle(
+    "Auto Kill",
+    "Best used with auto punch",
+    false,
+    function(toggleState)
+        if toggleState then
+            -- Define the global variable to control auto-kill activity
+            _G.autoKillActive = true
+
+            -- Function for auto-kill method 1
+            local function method1()
+                while _G.autoKillActive do
+                    wait() -- Added delay to reduce performance impact
+                    local player = game.Players.LocalPlayer
+                    player.muscleEvent:FireServer("punch", "rightHand")
+                    player.muscleEvent:FireServer("punch", "leftHand")
+
+                    for _, otherPlayer in pairs(game.Players:GetChildren()) do
+                        if otherPlayer.Name ~= player.Name then
+                            local character = game.Workspace:FindFirstChild(otherPlayer.Name)
+                            local localCharacter = game.Workspace:FindFirstChild(player.Name)
+
+                            if character and localCharacter then
+                                local leftHand = localCharacter:FindFirstChild("LeftHand")
+
+                                if leftHand then
+                                    local head = character:FindFirstChild("Head")
+                                    if head then
+                                        head.CFrame = leftHand.CFrame
+                                    end
+
+                                    for _, descendant in pairs(character:GetDescendants()) do
+                                        if descendant:IsA("BasePart") and descendant.Name == "Handle" then
+                                            descendant.CFrame = leftHand.CFrame
+                                        end
+                                    end
+
+                                    local sweatPart = character:FindFirstChild("sweatPart")
+                                    if sweatPart then
+                                        sweatPart.CFrame = leftHand.CFrame
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- Function for auto-kill method 2
+            local function method2()
+                while _G.autoKillActive do
+                    wait() -- Added delay to reduce performance impact
+                    local player = game.Players.LocalPlayer
+                    player.muscleEvent:FireServer("punch", "rightHand")
+                    player.muscleEvent:FireServer("punch", "leftHand")
+
+                    for _, otherPlayer in pairs(game.Players:GetChildren()) do
+                        if otherPlayer.Name ~= player.Name then
+                            local character = game.Workspace:FindFirstChild(otherPlayer.Name)
+                            local localCharacter = game.Workspace:FindFirstChild(player.Name)
+
+                            if character and localCharacter then
+                                local leftHand = localCharacter:FindFirstChild("LeftHand")
+
+                                if leftHand then
+                                    local head = character:FindFirstChild("Head")
+                                    if head then
+                                        head.Parent = nil
+                                        wait(0.1)
+                                        head.CFrame = leftHand.CFrame
+                                        head.Parent = character
+                                    end
+
+                                    for _, descendant in pairs(character:GetDescendants()) do
+                                        if descendant:IsA("BasePart") and descendant.Name == "Handle" then
+                                            descendant.CFrame = leftHand.CFrame
+                                        end
+                                    end
+
+                                    local sweatPart = character:FindFirstChild("sweatPart")
+                                    if sweatPart then
+                                        sweatPart.CFrame = leftHand.CFrame
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- Run both methods concurrently
+            coroutine.wrap(method1)()
+            coroutine.wrap(method2)()
+        else
+            _G.autoKillActive = false
+        end
+    end
+)
+--Fast Punch Toggle
+punchTab.newToggle(
+    "Fast Punch",
+    "Faster punching.",
+    false,
+    function(toggleState)
+        if toggleState then
+            local player = game.Players.LocalPlayer
+            local punch = player.Backpack:FindFirstChild("Punch")
+            local character = game.Workspace:FindFirstChild(player.Name)
+            local punch1
+
+            if character then
+                punch1 = character:FindFirstChild("Punch")
+            end
+
+            if punch and punch:FindFirstChild("attackTime") then
+                punch.attackTime.Value = 0
+            elseif punch1 and punch1:FindFirstChild("attackTime") then
+                punch1.attackTime.Value = 0
+            end
+        else
+            local player = game.Players.LocalPlayer
+            local punch = player.Backpack:FindFirstChild("Punch")
+            local character = game.Workspace:FindFirstChild(player.Name)
+            local punch1
+
+            if character then
+                punch1 = character:FindFirstChild("Punch")
+            end
+
+            if punch and punch:FindFirstChild("attackTime") then
+                punch.attackTime.Value = 0.35
+            elseif punch1 and punch1:FindFirstChild("attackTime") then
+                punch1.attackTime.Value = 0.35
+            end
+        end
+    end
+)
+--Auto Punch (No animation) Toggle
+punchTab.newToggle(
+    "Auto Punch (No Animation)",
+    "Punch until toggled off",
+    false,
+    function(toggleState)
+        if toggleState then
+            local player = game.Players.LocalPlayer
+            local playerName = player.Name
+            local punchTool =
+                player.Backpack:FindFirstChild("Punch") or
+                game.Workspace:FindFirstChild(playerName):FindFirstChild("Punch")
+            _G.autoPunchanim = true -- Global control variable
+
+            while _G.autoPunchanim do
+                if punchTool then
+                    if punchTool.Parent ~= game.Workspace:FindFirstChild(playerName) then
+                        punchTool.Parent = game.Workspace:FindFirstChild(playerName) -- Equip the tool
+                    end
+                    game.Players.LocalPlayer.muscleEvent:FireServer("punch", "rightHand")
+                    game.Players.LocalPlayer.muscleEvent:FireServer("punch", "leftHand")
+                    wait() -- Adjust the delay as needed for timing between punches
+                else
+                    warn("Punch tool not found")
+                    _G.autoPunchanim = false -- Optional: Stop the loop if tool is not found
+                end
+            end
+        else
+            _G.autoPunchanim = false
+        end
+    end
+)
+--Auto Punch (Animation) Toggle
+punchTab.newToggle(
+    "Auto Punch (With Animation)",
+    "Punches until toggled off",
+    false,
+    function(toggleState)
+        if toggleState then
+            local player = game.Players.LocalPlayer
+            local playerName = player.Name
+            local punchTool =
+                player.Backpack:FindFirstChild("Punch") or
+                game.Workspace:FindFirstChild(playerName):FindFirstChild("Punch")
+            _G.punchanim = true -- Global control variable
+
+            while _G.punchanim do
+                if punchTool then
+                    if punchTool.Parent ~= game.Workspace:FindFirstChild(playerName) then
+                        punchTool.Parent = game.Workspace:FindFirstChild(playerName) -- Equip the tool
+                    end
+                    punchTool:Activate() -- Simulate the click action
+                    wait() -- Adjust the delay as needed for timing between punches
+                else
+                    warn("Punch tool not found")
+                    _G.punchanim = false -- Optional: Stop the loop if tool is not found
+                end
+            end
+        else
+            _G.punchanim = false
+        end
+    end
+)
+
+--See Kills Button
+punchTab.newButton(
+    "See Kills GUI",
+    "See your kills in that gui",
+    function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ProjectV1ontop/ProjectV1/main/ProjectV1%20SeeKills"))()
+    end
+)
+
+--Rock Tab (Auto: Frozen Rock, Inferno Rock, Muscle King Rock, Rock of Legends, Tiny Rock)
+local rocksTab = DrRayLibrary.newTab("Rocks", "ImageIdHere")
+--Auto Muscle King Rock Toggle
+rocksTab.newToggle(
+    "Muscle King Rock",
+    "Start punching to hit the rock!",
+    false,
+    function(toggleState)
+        if toggleState then
+            local player = game.Players.LocalPlayer
+            local playerName = player.Name
+            local character = player.Character or player.CharacterAdded:Wait()
+            local leftHand = character:WaitForChild("LeftHand")
+
+            local rock = game.Workspace.machinesFolder:FindFirstChild("Muscle King Mountain"):FindFirstChild("Rock")
+
+            _G.musclekingautorock = true
+
+            while _G.musclekingautorock do
+                if rock then
+                    -- Change the size of the Rock to match a normal Roblox head size
+                    rock.Size = Vector3.new(2, 1, 1)
+                    rock.Transparency = 1
+                    for i, v in pairs(rock.rockGui:GetChildren()) do
+                        v.Visible = false
+                    end
+                    rock.CanCollide = false
+                    if rock:FindFirstChild("rockEmitter") then
+                        rock.rockEmitter:Destroy()
+                    end
+                    if rock:FindFirstChild("hoopParticle") then
+                        rock.hoopParticle:Destroy()
+                    end
+                    if rock:FindFirstChild("lavaParticle") then
+                        rock.lavaParticle:Destroy()
+                    end
+                    -- Teleport the Rock to the player's left hand
+                    rock.CFrame = leftHand.CFrame
+                else
+                    warn("Rock not found.")
+                end
+                wait() -- Adjust delay as needed to control the loop frequency
+            end
+        else
+            local success, result =
+                pcall(
+                function()
+                    local player = game.Players.LocalPlayer
+
+                    -- Find the Rock inside Muscle King Mountain
+
+                    local rock =
+                        game.Workspace.machinesFolder:FindFirstChild("Muscle King Mountain"):FindFirstChild("Rock")
+
+                    _G.musclekingautorock = false
+
+                    if rock then
+                        for i, v in pairs(rock.rockGui:GetChildren()) do
+                            v.Visible = true
+                        end
+                        rock.CanCollide = true
+                        rock.Transparency = 0
+                        -- Optionally, move Rock to an original position if needed
+                        rock.CFrame = CFrame.new(rock.originalPosition.Value) -- Replace with the original position
+
+                        rock.Size = Vector3.new(141.97381591796875, 123.69998931884766, 149.70497131347656) -- Adjust to original size as needed
+                    else
+                        warn("Rock not found in Muscle King Mountain.")
+                    end
+                end
+            )
+            if not success then
+            end
+        end
+    end
+)
+--Auto Rock Of Legends Toggle
+rocksTab.newToggle(
+    "Rock Of Legends",
+    "Start punching to hit the rock!",
+    false,
+    function(toggleState)
+        if toggleState then
+            local player = game.Players.LocalPlayer
+            local playerName = player.Name
+            local character = player.Character or player.CharacterAdded:Wait()
+            local leftHand = character:WaitForChild("LeftHand")
+
+            local rock = game.Workspace.machinesFolder:FindFirstChild("Rock Of Legends"):FindFirstChild("Rock")
+
+            _G.legendsautorock = true
+
+            while _G.legendsautorock do
+                if rock then
+                    -- Change the size of the Rock to match a normal Roblox head size
+                    rock.Size = Vector3.new(2, 1, 1)
+                    rock.Transparency = 1
+                    for i, v in pairs(rock.rockGui:GetChildren()) do
+                        v.Visible = false
+                    end
+                    rock.CanCollide = false
+                    if rock:FindFirstChild("rockEmitter") then
+                        rock.rockEmitter:Destroy()
+                    end
+                    if rock:FindFirstChild("hoopParticle") then
+                        rock.hoopParticle:Destroy()
+                    end
+                    if rock:FindFirstChild("lavaParticle") then
+                        rock.lavaParticle:Destroy()
+                    end
+                    -- Teleport the Rock to the player's left hand
+                    rock.CFrame = leftHand.CFrame
+                else
+                    warn("Rock not found.")
+                end
+                wait() -- Adjust delay as needed to control the loop frequency
+            end
+        else
+            local success, result =
+                pcall(
+                function()
+                    local player = game.Players.LocalPlayer
+
+                    -- Find the Rock inside Muscle King Mountain
+
+                    local rock = game.Workspace.machinesFolder:FindFirstChild("Rock Of Legends"):FindFirstChild("Rock")
+
+                    _G.legendsautorock = false
+
+                    if rock then
+                        for i, v in pairs(rock.rockGui:GetChildren()) do
+                            v.Visible = true
+                        end
+                        rock.CanCollide = true
+                        rock.Transparency = 0
+                        -- Optionally, move Rock to an original position if needed
+                        rock.CFrame = CFrame.new(rock.originalPosition.Value) -- Replace with the original position
+
+                        rock.Size = Vector3.new(106.04995727539062, 92.39998626708984, 111.82489013671875) -- Adjust to original size as needed
+                    else
+                        warn("Rock not found in Muscle King Mountain.")
+                    end
+                end
+            )
+            if not success then
+            end
+        end
+    end
+)
+--Auto Inferno Rock Toggle
+rocksTab.newToggle(
+    "Inferno Rock",
+    "Start punching to hit the rock!",
+    false,
+    function(toggleState)
+        if toggleState then
+            local player = game.Players.LocalPlayer
+            local playerName = player.Name
+            local character = player.Character or player.CharacterAdded:Wait()
+            local leftHand = character:WaitForChild("LeftHand")
+
+            local rock = game.Workspace.machinesFolder:FindFirstChild("Inferno Rock"):FindFirstChild("Rock")
+
+            _G.infernoautorock = true
+
+            while _G.infernoautorock do
+                if rock then
+                    -- Change the size of the Rock to match a normal Roblox head size
+                    rock.Size = Vector3.new(2, 1, 1)
+                    rock.Transparency = 1
+                    for i, v in pairs(rock.rockGui:GetChildren()) do
+                        v.Visible = false
+                    end
+                    rock.CanCollide = false
+                    if rock:FindFirstChild("rockEmitter") then
+                        rock.rockEmitter:Destroy()
+                    end
+                    if rock:FindFirstChild("hoopParticle") then
+                        rock.hoopParticle:Destroy()
+                    end
+                    if rock:FindFirstChild("lavaParticle") then
+                        rock.lavaParticle:Destroy()
+                    end
+                    -- Teleport the Rock to the player's left hand
+                    rock.CFrame = leftHand.CFrame
+                else
+                    warn("Rock not found.")
+                end
+                wait() -- Adjust delay as needed to control the loop frequency
+            end
+        else
+            local success, result =
+                pcall(
+                function()
+                    local player = game.Players.LocalPlayer
+
+                    -- Find the Rock inside Muscle King Mountain
+
+                    local rock = game.Workspace.machinesFolder:FindFirstChild("Inferno Rock"):FindFirstChild("Rock")
+
+                    _G.infernoautorock = false
+
+                    if rock then
+                        for i, v in pairs(rock.rockGui:GetChildren()) do
+                            v.Visible = true
+                        end
+                        rock.CanCollide = true
+                        rock.Transparency = 0
+                        -- Optionally, move Rock to an original position if needed
+                        rock.CFrame = CFrame.new(rock.originalPosition.Value) -- Replace with the original position
+
+                        rock.Size = Vector3.new(80.6851577758789, 70.2999496459961, 85.07884979248047) -- Adjust to original size as needed
+                    else
+                        warn("Rock not found in Muscle King Mountain.")
+                    end
+                end
+            )
+            if not success then
+            end
+        end
+    end
+)
+--Auto Frozen Rock Toggle
+rocksTab.newToggle(
+    "Frozen Rock",
+    "Start punching to hit the rock!",
+    false,
+    function(toggleState)
+        if toggleState then
+            local player = game.Players.LocalPlayer
+            local playerName = player.Name
+            local character = player.Character or player.CharacterAdded:Wait()
+            local leftHand = character:WaitForChild("LeftHand")
+
+            local rock = game.Workspace.machinesFolder:FindFirstChild("Frozen Rock"):FindFirstChild("Rock")
+
+            _G.frozenautorock = true
+
+            while _G.frozenautorock do
+                if rock then
+                    -- Change the size of the Rock to match a normal Roblox head size
+                    rock.Size = Vector3.new(2, 1, 1)
+                    rock.Transparency = 1
+                    for i, v in pairs(rock.rockGui:GetChildren()) do
+                        v.Visible = false
+                    end
+                    rock.CanCollide = false
+                    if rock:FindFirstChild("rockEmitter") then
+                        rock.rockEmitter:Destroy()
+                    end
+                    if rock:FindFirstChild("hoopParticle") then
+                        rock.hoopParticle:Destroy()
+                    end
+                    if rock:FindFirstChild("lavaParticle") then
+                        rock.lavaParticle:Destroy()
+                    end
+                    -- Teleport the Rock to the player's left hand
+                    rock.CFrame = leftHand.CFrame
+                else
+                    warn("Rock not found.")
+                end
+                wait() -- Adjust delay as needed to control the loop frequency
+            end
+        else
+            local success, result =
+                pcall(
+                function()
+                    local player = game.Players.LocalPlayer
+
+                    -- Find the Rock inside Muscle King Mountain
+
+                    local rock = game.Workspace.machinesFolder:FindFirstChild("Frozen Rock"):FindFirstChild("Rock")
+
+                    _G.frozenautorock = false
+
+                    if rock then
+                        for i, v in pairs(rock.rockGui:GetChildren()) do
+                            v.Visible = true
+                        end
+                        rock.CanCollide = true
+                        rock.Transparency = 0
+                        -- Optionally, move Rock to an original position if needed
+                        rock.CFrame = CFrame.new(rock.originalPosition.Value) -- Replace with the original position
+
+                        rock.Size = Vector3.new(80.6851577758789, 70.2999496459961, 85.07884979248047) -- Adjust to original size as needed
+                    else
+                        warn("Rock not found in Muscle King Mountain.")
+                    end
+                end
+            )
+            if not success then
+            end
+        end
+    end
+)
+--Auto Tiny Rock Toggle
+rocksTab.newToggle(
+    "Tiny Rock",
+    "Start punching to hit the rock!",
+    false,
+    function(toggleState)
+        if toggleState then
+            local player = game.Players.LocalPlayer
+            local playerName = player.Name
+            local character = player.Character or player.CharacterAdded:Wait()
+            local leftHand = character:WaitForChild("LeftHand")
+
+            local rock = game.Workspace.machinesFolder:FindFirstChild("Tiny Rock"):FindFirstChild("Rock")
+
+            _G.tinyautorock = true
+
+            while _G.tinyautorock do
+                if rock then
+                    -- Change the size of the Rock to match a normal Roblox head size
+                    rock.Size = Vector3.new(2, 1, 1)
+                    rock.Transparency = 1
+                    for i, v in pairs(rock.rockGui:GetChildren()) do
+                        v.Visible = false
+                    end
+                    rock.CanCollide = false
+                    if rock:FindFirstChild("rockEmitter") then
+                        rock.rockEmitter:Destroy()
+                    end
+                    if rock:FindFirstChild("hoopParticle") then
+                        rock.hoopParticle:Destroy()
+                    end
+                    if rock:FindFirstChild("lavaParticle") then
+                        rock.lavaParticle:Destroy()
+                    end
+                    -- Teleport the Rock to the player's left hand
+                    rock.CFrame = leftHand.CFrame
+                else
+                    warn("Rock not found.")
+                end
+                wait() -- Adjust delay as needed to control the loop frequency
+            end
+        else
+            local success, result =
+                pcall(
+                function()
+                    local player = game.Players.LocalPlayer
+
+                    -- Find the Rock inside Muscle King Mountain
+
+                    local rock = game.Workspace.machinesFolder:FindFirstChild("Tiny Rock"):FindFirstChild("Rock")
+
+                    _G.tinyautorock = false
+
+                    if rock then
+                        for i, v in pairs(rock.rockGui:GetChildren()) do
+                            v.Visible = true
+                        end
+                        rock.CanCollide = true
+                        rock.Transparency = 0
+                        -- Optionally, move Rock to an original position if needed
+                        rock.CFrame = CFrame.new(rock.originalPosition.Value) -- Replace with the original position
+
+                        rock.Size = Vector3.new(23.18409538269043, 20.20000648498535, 24.44658088684082) -- Adjust to original size as needed
+                    else
+                        warn("Rock not found in Muscle King Mountain.")
+                    end
+                end
+            )
+            if not success then
+            end
+        end
+    end
+)
+
+--Area Teleports Tab (Beach, Eternal Gym, Fortune Island, Frost Gym, Legends Gym, Muscle King Island, Mythic Gym, Tiny island)
+local areasTab = DrRayLibrary.newTab("Teleports", "ImageIdHere")
+--Muscle King Island Button
+areasTab.newButton(
+    "Muscle King Island",
+    "Teleport to area",
+    function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-8626, 15, -5730)
+    end
+)
+--Beach Button
+areasTab.newButton(
+    "Beach",
+    "Teleport to area",
+    function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-11, 5, -178)
+    end
+)
+--Legends Gym Button
+areasTab.newButton(
+    "Legends Gym",
+    "Teleport to area",
+    function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(4603, 989, -3898)
+    end
+)
+--Mythic Gym Button
+areasTab.newButton(
+    "Mythic Gym",
+    "Teleport to area",
+    function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(2251, 5, 1073)
+    end
+)
+--Eternal Gym Button
+areasTab.newButton(
+    "Eternal Gym",
+    "Teleport to area",
+    function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-6759, 5, -1285)
+    end
+)
+--Frost Gym Button
+areasTab.newButton(
+    "Frost Gym",
+    "Teleport to area",
+    function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-2623, 5, -409)
+    end
+)
+--Tiny Island Button
+areasTab.newButton(
+    "Tiny Island",
+    "Teleport to area",
+    function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-38, 5, 1884)
+    end
+)
+--Fortune Island Button
+areasTab.newButton(
+    "Fortune Island",
+    "Teleport to area",
+    function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-2596, -1, 5738)
+    end
+)
+
+local WalkPart = Instance.new("Part")
+    WalkPart.Parent = Game.Workspace
+    WalkPart.Anchored = true
+    WalkPart.Position = Vector3.new(11, -9, 78)
+    WalkPart.Size = Vector3.new(10000,0,10000)
+
+    local WalkPart = Instance.new("Part")
+    WalkPart.Parent = Game.Workspace
+    WalkPart.Anchored = true
+    WalkPart.Position = Vector3.new(-110, -9,-999)
+    WalkPart.Size = Vector3.new(10000,0,10000)
+
+    local WalkPart = Instance.new("Part")
+    WalkPart.Parent = Game.Workspace
+    WalkPart.Anchored = true
+    WalkPart.Position = Vector3.new(-110, -9,1999)
+    WalkPart.Size = Vector3.new(1000000000,0,1000000000000)
+    
+    -- Remove Extras tab and replace with Credits tab
+local creditsTab = DrRayLibrary.newTab("Credits", "ImageIdHere")
+
+-- Add credits information
+creditsTab.newLabel("Developer: Xeno, quotehacks")
+creditsTab.newLabel("Idea and Owner: quotehacks")
+creditsTab.newLabel("Thank you for using this script!")
+
+
+p
